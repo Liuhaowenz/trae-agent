@@ -170,6 +170,7 @@ class BaseAgent(ABC):
         # Update token usage
         self._update_llm_usage(llm_response, execution)
 
+        # 回答结果判断
         if self.llm_indicates_task_completed(llm_response):
             if self._is_task_completed(llm_response):
                 execution.agent_state = AgentState.COMPLETED
@@ -263,6 +264,7 @@ class BaseAgent(ABC):
         self, tool_calls: list[ToolCall] | None, step: AgentStep
     ) -> list[LLMMessage]:
         messages: list[LLMMessage] = []
+        # 要求具体行动证明，必要有产出
         if not tool_calls or len(tool_calls) <= 0:
             messages = [
                 LLMMessage(

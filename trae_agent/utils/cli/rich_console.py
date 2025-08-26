@@ -240,6 +240,7 @@ class RichConsoleApp(App[None]):
 
             if self.execution_log:
                 _ = self.execution_log.write(f"[blue]Executing task: {task}[/blue]")
+                self.execution_log.refresh()  # 强制立即刷新，显示界面
 
             # Execute the task
             _ = await self.console_impl.agent.run(task, task_args)

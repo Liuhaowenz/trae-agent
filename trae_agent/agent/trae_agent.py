@@ -120,10 +120,12 @@ class TraeAgent(BaseAgent):
             raise AgentError("Project path is required")
 
         self.project_path = extra_args.get("project_path", "")
-        user_message += f"[Project root path]:\n{self.project_path}\n\n"
+        # user_message += f"[Project root path]:\n{self.project_path}\n\n"
+        user_message += f"[项目根目录]:\n{self.project_path}\n\n"
 
         if "issue" in extra_args:
-            user_message += f"[Problem statement]: We're currently solving the following issue within our repository. Here's the issue text:\n{extra_args['issue']}\n"
+            user_message += f"[问题陈述]: 我们正在解决代码库中的以下问题。当你完成工具调用后，也要回答完成。以下是问题文本，请用中文回答：\n{extra_args['issue']}\n"
+            # user_message += f"[Problem statement]: We're currently solving the following issue within our repository. Here's the issue text:\n{extra_args['issue']}\n"
         optional_attrs_to_set = ["base_commit", "must_patch", "patch_path"]
         for attr in optional_attrs_to_set:
             if attr in extra_args:

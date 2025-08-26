@@ -57,6 +57,7 @@ class Agent:
         extra_args: dict[str, str] | None = None,
         tool_names: list[str] | None = None,
     ):
+        ''' 设置基础环境【项目根目录，问题陈述】， 加入系统提示词，user提示词  初始化路径追踪'''
         self.agent.new_task(task, extra_args, tool_names)
 
         if self.agent.allow_mcp_servers:

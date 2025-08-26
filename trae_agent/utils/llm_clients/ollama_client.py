@@ -13,10 +13,8 @@ import openai
 from ollama import chat as ollama_chat  # pyright: ignore[reportUnknownVariableType]
 from openai.types.responses import (
     FunctionToolParam,
-    ResponseFunctionToolCallParam,
     ResponseInputParam,
 )
-from openai.types.responses.response_input_param import FunctionCallOutput
 
 from trae_agent.tools.base import Tool, ToolCall, ToolResult
 from trae_agent.utils.config import ModelConfig
@@ -37,7 +35,7 @@ class OllamaClient(BaseLLMClient):
             else "http://localhost:11434/v1",
         )
 
-        self.message_history: ResponseInputParam = []
+        self.message_history: list[dict] = []
 
     @override
     def set_chat_history(self, messages: list[LLMMessage]) -> None:
@@ -143,53 +141,57 @@ class OllamaClient(BaseLLMClient):
 
         return llm_response
 
-    def parse_messages(self, messages: list[LLMMessage]) -> ResponseInputParam:
+    def parse_messages(self, messages: list[LLMMessage]) -> list[dict]:
         """
-        Ollama parse messages should be compatible with openai handling
+        Parse messages to Ollama format
         """
-        openai_messages: ResponseInputParam = []
+        ollama_messages: list[dict] = []
         for msg in messages:
             if msg.tool_result:
-                openai_messages.append(self.parse_tool_call_result(msg.tool_result))
+                # 工具结果消息
+                result: str = ""
+                if msg.tool_result.result:
+                    result = result + msg.tool_result.result + "\n"
+                if msg.tool_result.error:
+                    result += msg.tool_result.error
+                result = result.strip()
+                
+                ollama_messages.append({
+                    "role": "tool",
+                    "content": result,
+                    "tool_call_id": msg.tool_result.call_id,
+                })
             elif msg.tool_call:
-                openai_messages.append(self.parse_tool_call(msg.tool_call))
+                # 工具调用消息
+                ollama_messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": msg.tool_call.call_id,
+                            "type": "function",
+                            "function": {
+                                "name": msg.tool_call.name,
+                                "arguments": json.dumps(msg.tool_call.arguments),
+                            },
+                        }
+                    ],
+                })
             else:
+                # 普通消息
                 if not msg.content:
                     raise ValueError("Message content is required")
                 if msg.role == "system":
-                    openai_messages.append({"role": "system", "content": msg.content})
+                    ollama_messages.append({"role": "system", "content": msg.content})
                 elif msg.role == "user":
-                    openai_messages.append({"role": "user", "content": msg.content})
+                    ollama_messages.append({"role": "user", "content": msg.content})
                 elif msg.role == "assistant":
-                    openai_messages.append({"role": "assistant", "content": msg.content})
+                    ollama_messages.append({"role": "assistant", "content": msg.content})
                 else:
                     raise ValueError(f"Invalid message role: {msg.role}")
-        return openai_messages
+        return ollama_messages
 
-    def parse_tool_call(self, tool_call: ToolCall) -> ResponseFunctionToolCallParam:
-        """Parse the tool call from the LLM response."""
-        return ResponseFunctionToolCallParam(
-            call_id=tool_call.call_id,
-            name=tool_call.name,
-            arguments=json.dumps(tool_call.arguments),
-            type="function_call",
-        )
 
-    def parse_tool_call_result(self, tool_call_result: ToolResult) -> FunctionCallOutput:
-        """Parse the tool call result from the LLM response."""
-        result: str = ""
-        if tool_call_result.result:
-            result = result + tool_call_result.result + "\n"
-        if tool_call_result.error:
-            result += tool_call_result.error
-        result = result.strip()
-
-        return FunctionCallOutput(
-            call_id=tool_call_result.call_id,
-            id=tool_call_result.id,
-            output=result,
-            type="function_call_output",
-        )
 
     def _id_generator(self) -> str:
         """Generate a random ID string"""
